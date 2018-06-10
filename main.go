@@ -8,13 +8,17 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 )
 
-const fetchURL = "http://web.archive.org/cdx/search/cdx?url=*.%s/*&output=json&fl=original&collapse=urlkey"
+const fetchURL = "http://web.archive.org/cdx/search/cdx?url=*.%s/*&output=json&collapse=urlkey"
 
 func main() {
 
 	var domains []string
+
+	var dates bool
+	flag.BoolVar(&dates, "dates", false, "show date of fetch in the first column")
 
 	flag.Parse()
 
@@ -36,37 +40,53 @@ func main() {
 
 	for _, domain := range domains {
 
-		urls, err := getWaybackURLs(domain)
+		wurls, err := getWaybackURLs(domain)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to fetch URLs for [%s]\n", domain)
 			continue
 		}
 
-		for _, url := range urls {
-			fmt.Println(url)
+		for _, w := range wurls {
+			if dates {
+
+				d, err := time.Parse("20060102150405", w.date)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "failed to parse date [%s] for URL [%s]\n", w.date, w.url)
+				}
+
+				fmt.Printf("%s %s\n", d.Format(time.RFC3339), w.url)
+
+			} else {
+				fmt.Println(w.url)
+			}
 		}
 	}
 
 }
 
-func getWaybackURLs(domain string) ([]string, error) {
+type wurl struct {
+	date string
+	url  string
+}
 
-	out := make([]string, 0)
+func getWaybackURLs(domain string) ([]wurl, error) {
 
 	res, err := http.Get(fmt.Sprintf(fetchURL, domain))
 	if err != nil {
-		return out, err
+		return []wurl{}, err
 	}
 
 	raw, err := ioutil.ReadAll(res.Body)
 
 	res.Body.Close()
 	if err != nil {
-		return out, err
+		return []wurl{}, err
 	}
 
 	var wrapper [][]string
 	err = json.Unmarshal(raw, &wrapper)
+
+	out := make([]wurl, 0, len(wrapper))
 
 	skip := true
 	for _, urls := range wrapper {
@@ -76,7 +96,7 @@ func getWaybackURLs(domain string) ([]string, error) {
 			skip = false
 			continue
 		}
-		out = append(out, urls...)
+		out = append(out, wurl{date: urls[1], url: urls[2]})
 	}
 
 	return out, nil
