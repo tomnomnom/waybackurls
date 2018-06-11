@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"time"
+
+	"github.com/sethgrid/pester"
 )
 
 type config struct {
@@ -49,8 +50,8 @@ func loadConfig() {
 func validateParams() {
 	var didError = false
 
-	if cfg.target == "" {
-		log.Println("Error: target is a required parameter, cannot be blank.")
+	if cfg.target == "" && cfg.targetFile == "" {
+		log.Println("Error: Either target or targetFile is a required parameter, both cannot be blank. If both are provided, targetFile is given preference")
 		didError = true
 	}
 
@@ -60,7 +61,7 @@ func validateParams() {
 	}
 
 	if didError {
-		log.Fatalf("Usage: waybackurls -target TODO -result TODO")
+		log.Fatalf("Usage: waybackurls -target TODO -result TODO -targetFile TODO -dates")
 		os.Exit(1)
 	}
 }
@@ -95,6 +96,12 @@ func main() {
 		}
 	}
 
+	f, err := os.Create(cfg.result)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
 	for _, domain := range domains {
 
 		wurls, err := getWaybackURLs(domain)
@@ -103,18 +110,12 @@ func main() {
 			continue
 		}
 
-		f, err := os.Create(cfg.result)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer f.Close()
-
 		for _, w := range wurls {
 			if cfg.dates {
 
 				d, err := time.Parse("20060102150405", w.date)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "failed to parse date [%s] for URL [%s]\n", w.date, w.url)
+					fmt.Fprintf(os.Stderr, "WARNING: failed to parse date [%s] for URL [%s]\n", w.date, w.url)
 				}
 
 				f.WriteString(fmt.Sprintf("%s %s\n", d.Format(time.RFC3339), w.url))
@@ -131,12 +132,19 @@ func main() {
 
 func getWaybackURLs(domain string) ([]wurl, error) {
 
-	c := &http.Client{
-		Timeout: 300 * time.Second, //TODO: keep trying if timeout occurs
-	}
+	c := pester.New()
+	c.MaxRetries = 10
+	c.KeepLog = true
+	c.Backoff = pester.ExponentialBackoff
+	c.Timeout = 300 * time.Second
+
+	// c := &http.Client{
+	// 	Timeout: 300 * time.Second, //TODO: keep trying if timeout occurs
+	// }
 
 	res, err := c.Get(fmt.Sprintf(fetchURL, domain))
 	if err != nil {
+		fmt.Println(c.LogString())
 		return []wurl{}, err
 	}
 
@@ -165,7 +173,7 @@ func getWaybackURLs(domain string) ([]wurl, error) {
 		}
 
 	} else {
-		out = append(out, wurl{date: time.Now().String(), url: "http://" + cfg.target + "\n"})
+		out = append(out, wurl{date: "NA", url: "http://" + domain})
 	}
 
 	return out, nil

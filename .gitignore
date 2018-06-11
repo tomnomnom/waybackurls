@@ -3,3 +3,4 @@ waybackurls
 *.tgz
 *.zip
 *.exe
+vendor/
