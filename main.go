@@ -13,9 +13,10 @@ import (
 )
 
 type config struct {
-	target string
-	result string
-	dates  bool
+	target     string
+	result     string
+	dates      bool
+	targetFile string
 }
 
 type wurl struct {
@@ -31,13 +32,15 @@ func loadConfig() {
 	t := flag.String("target", "", "Target Domain")
 	r := flag.String("result", "", "Result location")
 	d := flag.Bool("dates", false, "show date of fetch in the first column")
+	tf := flag.String("targetFile", "", "Target File of Domains")
 
 	flag.Parse()
 
 	cfg = config{
-		target: *t,
-		result: *r,
-		dates:  *d,
+		target:     *t,
+		result:     *r,
+		dates:      *d,
+		targetFile: *tf,
 	}
 
 	validateParams()
@@ -70,13 +73,19 @@ func main() {
 
 	var domains []string
 
-	if flag.NArg() > 0 {
+	if cfg.targetFile == "" {
 		// fetch for a single domain
-		domains = []string{flag.Arg(0)}
+		domains = []string{cfg.target}
 	} else {
 
+		f, err := os.Open(cfg.targetFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+
 		// fetch for all domains from stdin
-		sc := bufio.NewScanner(os.Stdin)
+		sc := bufio.NewScanner(f)
 		for sc.Scan() {
 			domains = append(domains, sc.Text())
 		}
