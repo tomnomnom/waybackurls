@@ -107,6 +107,7 @@ func main() {
 		wurls, err := getWaybackURLs(domain)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to fetch URLs for [%s]\n", domain)
+			f.WriteString("http://" + domain)
 			continue
 		}
 
