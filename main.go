@@ -8,10 +8,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
-
-const fetchURL = "http://web.archive.org/cdx/search/cdx?url=*.%s/*&output=json&collapse=urlkey"
 
 func main() {
 
@@ -38,15 +37,40 @@ func main() {
 		}
 	}
 
+	fetchFns := []fetchFn{getWaybackURLs, getCommonCrawlURLs}
+
 	for _, domain := range domains {
 
-		wurls, err := getWaybackURLs(domain)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to fetch URLs for [%s]\n", domain)
-			continue
+		var wg sync.WaitGroup
+		wurls := make(chan wurl)
+
+		for _, fn := range fetchFns {
+			wg.Add(1)
+			fetch := fn
+			go func() {
+				defer wg.Done()
+				resp, err := fetch(domain)
+				if err != nil {
+					return
+				}
+				for _, r := range resp {
+					wurls <- r
+				}
+			}()
 		}
 
-		for _, w := range wurls {
+		go func() {
+			wg.Wait()
+			close(wurls)
+		}()
+
+		seen := make(map[string]bool)
+		for w := range wurls {
+			if _, ok := seen[w.url]; ok {
+				continue
+			}
+			seen[w.url] = true
+
 			if dates {
 
 				d, err := time.Parse("20060102150405", w.date)
@@ -69,9 +93,13 @@ type wurl struct {
 	url  string
 }
 
+type fetchFn func(string) ([]wurl, error)
+
 func getWaybackURLs(domain string) ([]wurl, error) {
 
-	res, err := http.Get(fmt.Sprintf(fetchURL, domain))
+	res, err := http.Get(
+		fmt.Sprintf("http://web.archive.org/cdx/search/cdx?url=*.%s/*&output=json&collapse=urlkey", domain),
+	)
 	if err != nil {
 		return []wurl{}, err
 	}
@@ -97,6 +125,39 @@ func getWaybackURLs(domain string) ([]wurl, error) {
 			continue
 		}
 		out = append(out, wurl{date: urls[1], url: urls[2]})
+	}
+
+	return out, nil
+
+}
+
+func getCommonCrawlURLs(domain string) ([]wurl, error) {
+
+	res, err := http.Get(
+		fmt.Sprintf("http://index.commoncrawl.org/CC-MAIN-2018-22-index?url=*.%s&output=json", domain),
+	)
+	if err != nil {
+		return []wurl{}, err
+	}
+
+	defer res.Body.Close()
+	sc := bufio.NewScanner(res.Body)
+
+	out := make([]wurl, 0)
+
+	for sc.Scan() {
+
+		wrapper := struct {
+			URL       string `json:"url"`
+			Timestamp string `json:"timestamp"`
+		}{}
+		err = json.Unmarshal([]byte(sc.Text()), &wrapper)
+
+		if err != nil {
+			continue
+		}
+
+		out = append(out, wurl{date: wrapper.Timestamp, url: wrapper.URL})
 	}
 
 	return out, nil
