@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sethgrid/pester"
@@ -18,11 +19,6 @@ type config struct {
 	result     string
 	dates      bool
 	targetFile string
-}
-
-type wurl struct {
-	date string
-	url  string
 }
 
 var (
@@ -66,7 +62,8 @@ func validateParams() {
 	}
 }
 
-const fetchURL = "http://web.archive.org/cdx/search/cdx?url=*.%s/*&output=json&collapse=urlkey"
+const wayBackURL = "http://web.archive.org/cdx/search/cdx?url=*.%s/*&output=json&collapse=urlkey"
+const commonCrawlURL = "http://index.commoncrawl.org/CC-MAIN-2018-22-index?url=*.%s&output=json"
 
 func main() {
 
@@ -85,7 +82,7 @@ func main() {
 		}
 		defer f.Close()
 
-		// fetch for all domains from stdin
+		// fetch for all domains from the target file
 		sc := bufio.NewScanner(f)
 		for sc.Scan() {
 			domains = append(domains, sc.Text())
@@ -102,16 +99,42 @@ func main() {
 	}
 	defer f.Close()
 
+	fetchFns := []fetchFn{getWaybackURLs, getCommonCrawlURLs}
+
 	for _, domain := range domains {
 
-		wurls, err := getWaybackURLs(domain)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to fetch URLs for [%s]\n", domain)
-			f.WriteString("http://" + domain)
-			continue
+		var wg sync.WaitGroup
+		wurls := make(chan wurl)
+
+		for _, fn := range fetchFns {
+			wg.Add(1)
+			fetch := fn
+			go func() {
+				defer wg.Done()
+				resp, err := fetch(domain)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "failed to fetch URLs for [%s]\n", domain)
+					f.WriteString("http://" + domain)
+					return
+				}
+				for _, r := range resp {
+					wurls <- r
+				}
+			}()
 		}
 
-		for _, w := range wurls {
+		go func() {
+			wg.Wait()
+			close(wurls)
+		}()
+
+		seen := make(map[string]bool)
+		for w := range wurls {
+			if _, ok := seen[w.url]; ok {
+				continue
+			}
+			seen[w.url] = true
+
 			if cfg.dates {
 
 				d, err := time.Parse("20060102150405", w.date)
@@ -131,6 +154,13 @@ func main() {
 
 }
 
+type wurl struct {
+	date string
+	url  string
+}
+
+type fetchFn func(string) ([]wurl, error)
+
 func getWaybackURLs(domain string) ([]wurl, error) {
 
 	c := pester.New()
@@ -139,11 +169,7 @@ func getWaybackURLs(domain string) ([]wurl, error) {
 	c.Backoff = pester.ExponentialBackoff
 	c.Timeout = 300 * time.Second
 
-	// c := &http.Client{
-	// 	Timeout: 300 * time.Second, //TODO: keep trying if timeout occurs
-	// }
-
-	res, err := c.Get(fmt.Sprintf(fetchURL, domain))
+	res, err := c.Get(fmt.Sprintf(wayBackURL, domain))
 	if err != nil {
 		fmt.Println(c.LogString())
 		return []wurl{}, err
@@ -172,7 +198,49 @@ func getWaybackURLs(domain string) ([]wurl, error) {
 			}
 			out = append(out, wurl{date: urls[1], url: urls[2]})
 		}
+	} else {
+		out = append(out, wurl{date: "NA", url: "http://" + domain})
+	}
 
+	return out, nil
+
+}
+
+func getCommonCrawlURLs(domain string) ([]wurl, error) {
+
+	c := pester.New()
+	c.MaxRetries = 10
+	c.KeepLog = true
+	c.Backoff = pester.ExponentialBackoff
+	c.Timeout = 300 * time.Second
+
+	res, err := c.Get(fmt.Sprintf(commonCrawlURL, domain))
+	if err != nil {
+		fmt.Println(c.LogString())
+		return []wurl{}, err
+	}
+
+	defer res.Body.Close()
+
+	sc := bufio.NewScanner(res.Body)
+
+	out := make([]wurl, 0)
+
+	if res.StatusCode == 200 {
+		for sc.Scan() {
+
+			wrapper := struct {
+				URL       string `json:"url"`
+				Timestamp string `json:"timestamp"`
+			}{}
+			err = json.Unmarshal([]byte(sc.Text()), &wrapper)
+
+			if err != nil {
+				continue
+			}
+
+			out = append(out, wurl{date: wrapper.Timestamp, url: wrapper.URL})
+		}
 	} else {
 		out = append(out, wurl{date: "NA", url: "http://" + domain})
 	}
