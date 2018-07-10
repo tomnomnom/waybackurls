@@ -1,0 +1,12 @@
+[[projects]]
+  name = "github.com/sethgrid/pester"
+  packages = ["."]
+  revision = "03e26c9abbbf5accb8349790bf9f41bde09d72c3"
+  version = "1.0.0"
+
+[solve-meta]
+  analyzer-name = "dep"
+  analyzer-version = 1
+  inputs-digest = "1fe86e06203935ffe11b1e6104000cabea2faab0bf4c7fbfec14f3b5d94f8579"
+  solver-name = "gps-cdcl"
+  solver-version = 1
