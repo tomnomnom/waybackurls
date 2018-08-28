@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -57,6 +59,9 @@ func main() {
 					return
 				}
 				for _, r := range resp {
+					if noSubs && isSubdomain(r.url, domain) {
+						continue
+					}
 					wurls <- r
 				}
 			}()
@@ -173,4 +178,15 @@ func getCommonCrawlURLs(domain string, noSubs bool) ([]wurl, error) {
 
 	return out, nil
 
+}
+
+func isSubdomain(rawUrl, domain string) bool {
+	u, err := url.Parse(rawUrl)
+	if err != nil {
+		// we can't parse the URL so just
+		// err on the side of including it in output
+		return false
+	}
+
+	return strings.ToLower(u.Hostname()) != strings.ToLower(domain)
 }
