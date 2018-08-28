@@ -134,7 +134,7 @@ func getWaybackURLs(domain string) ([]wurl, error) {
 func getCommonCrawlURLs(domain string) ([]wurl, error) {
 
 	res, err := http.Get(
-		fmt.Sprintf("http://index.commoncrawl.org/CC-MAIN-2018-22-index?url=*.%s&output=json", domain),
+		fmt.Sprintf("http://index.commoncrawl.org/CC-MAIN-2018-22-index?url=*.%s/*&output=json", domain),
 	)
 	if err != nil {
 		return []wurl{}, err
