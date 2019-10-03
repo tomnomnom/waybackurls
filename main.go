@@ -72,22 +72,21 @@ func main() {
 			close(wurls)
 		}()
 
-		seen := make(map[string]bool)
+		seen := make(map[string]struct{})
 		for w := range wurls {
 			if _, ok := seen[w.url]; ok {
 				continue
 			}
-			seen[w.url] = true
+			seen[w.url] = struct{}{}
 
 			if dates {
-
 				d, err := time.Parse("20060102150405", w.date)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "failed to parse date [%s] for URL [%s]\n", w.date, w.url)
+					continue
 				}
 
 				fmt.Printf("%s %s\n", d.Format(time.RFC3339), w.url)
-
 			} else {
 				fmt.Println(w.url)
 			}
@@ -180,8 +179,8 @@ func getCommonCrawlURLs(domain string, noSubs bool) ([]wurl, error) {
 
 }
 
-func isSubdomain(rawUrl, domain string) bool {
-	u, err := url.Parse(rawUrl)
+func isSubdomain(rawURL, domain string) bool {
+	u, err := url.Parse(rawURL)
 	if err != nil {
 		// we can't parse the URL so just
 		// err on the side of including it in output
