@@ -42,7 +42,11 @@ func main() {
 		}
 	}
 
-	fetchFns := []fetchFn{getWaybackURLs, getCommonCrawlURLs}
+	fetchFns := []fetchFn{
+		getWaybackURLs,
+		getCommonCrawlURLs,
+		getVirusTotalURLs,
+	}
 
 	for _, domain := range domains {
 
@@ -174,6 +178,48 @@ func getCommonCrawlURLs(domain string, noSubs bool) ([]wurl, error) {
 		}
 
 		out = append(out, wurl{date: wrapper.Timestamp, url: wrapper.URL})
+	}
+
+	return out, nil
+
+}
+
+func getVirusTotalURLs(domain string, noSubs bool) ([]wurl, error) {
+	out := make([]wurl, 0)
+
+	apiKey := os.Getenv("VT_API_KEY")
+	if apiKey == "" {
+		// no API key isn't an error,
+		// just don't fetch
+		return out, nil
+	}
+
+	fetchURL := fmt.Sprintf(
+		"https://www.virustotal.com/vtapi/v2/domain/report?apikey=%s&domain=%s",
+		apiKey,
+		domain,
+	)
+
+	resp, err := http.Get(fetchURL)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	wrapper := struct {
+		URLs []struct {
+			URL string `json:"url"`
+			// TODO: handle VT date format (2018-03-26 09:22:43)
+			//Date string `json:"scan_date"`
+		} `json:"detected_urls"`
+	}{}
+
+	dec := json.NewDecoder(resp.Body)
+
+	err = dec.Decode(&wrapper)
+
+	for _, u := range wrapper.URLs {
+		out = append(out, wurl{url: u.URL})
 	}
 
 	return out, nil
