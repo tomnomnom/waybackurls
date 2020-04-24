@@ -14,6 +14,12 @@ Install:
 ▶ go get github.com/tomnomnom/waybackurls
 ```
 
+Include [VirusTotal](https://developers.virustotal.com/reference) URL data (optional):
+
+```
+▶ export VT_API_KEY=<VIRUSTOTAL API KEY>
+```
+
 ## Credit
 
 This tool was inspired by @mhmdiaa's [waybackurls.py](https://gist.github.com/mhmdiaa/adf6bff70142e5091792841d4b372050) script.
