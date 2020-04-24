@@ -24,6 +24,9 @@ func main() {
 	var noSubs bool
 	flag.BoolVar(&noSubs, "no-subs", false, "don't include subdomains of the target domain")
 
+	var getVersionsFlag bool
+	flag.BoolVar(&getVersionsFlag, "get-versions", false, "list URLs for crawled versions of input URL(s)")
+
 	flag.Parse()
 
 	if flag.NArg() > 0 {
@@ -40,6 +43,20 @@ func main() {
 		if err := sc.Err(); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to read input: %s\n", err)
 		}
+	}
+
+	// get-versions mode
+	if getVersionsFlag {
+
+		for _, u := range domains {
+			versions, err := getVersions(u)
+			if err != nil {
+				continue
+			}
+			fmt.Println(strings.Join(versions, "\n"))
+		}
+
+		return
 	}
 
 	fetchFns := []fetchFn{
@@ -235,4 +252,46 @@ func isSubdomain(rawUrl, domain string) bool {
 	}
 
 	return strings.ToLower(u.Hostname()) != strings.ToLower(domain)
+}
+
+func getVersions(u string) ([]string, error) {
+	out := make([]string, 0)
+
+	resp, err := http.Get(fmt.Sprintf(
+		"http://web.archive.org/cdx/search/cdx?url=%s&output=json", u,
+	))
+
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	r := [][]string{}
+
+	dec := json.NewDecoder(resp.Body)
+
+	err = dec.Decode(&r)
+	if err != nil {
+		return out, err
+	}
+
+	first := true
+	seen := make(map[string]bool)
+	for _, s := range r {
+
+		// skip the first element, it's the field names
+		if first {
+			first = false
+			continue
+		}
+
+		// fields: "urlkey", "timestamp", "original", "mimetype", "statuscode", "digest", "length"
+		if seen[s[5]] {
+			continue
+		}
+		seen[s[5]] = true
+		out = append(out, fmt.Sprintf("https://web.archive.org/web/%sif_/%s", s[1], s[2]))
+	}
+
+	return out, nil
 }
