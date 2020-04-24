@@ -131,7 +131,7 @@ func getWaybackURLs(domain string, noSubs bool) ([]wurl, error) {
 	}
 
 	res, err := http.Get(
-		fmt.Sprintf("http://web.archive.org/cdx/search/cdx?url=%s%s/*&output=json&collapse=urlkey", subsWildcard, domain),
+		fmt.Sprintf("https://web.archive.org/cdx/search/cdx?url=%s%s/*&output=json&collapse=urlkey", subsWildcard, domain),
 	)
 	if err != nil {
 		return []wurl{}, err
@@ -171,7 +171,7 @@ func getCommonCrawlURLs(domain string, noSubs bool) ([]wurl, error) {
 	}
 
 	res, err := http.Get(
-		fmt.Sprintf("http://index.commoncrawl.org/CC-MAIN-2018-22-index?url=%s%s/*&output=json", subsWildcard, domain),
+		fmt.Sprintf("https://index.commoncrawl.org/CC-MAIN-2018-22-index?url=%s%s/*&output=json", subsWildcard, domain),
 	)
 	if err != nil {
 		return []wurl{}, err
