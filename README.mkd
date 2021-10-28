@@ -11,10 +11,11 @@ Usage example:
 Install:
 
 ```
-▶ go get github.com/tomnomnom/waybackurls
+▶ go install -v github.com/tomnomnom/waybackurls@latest
 ```
 
 ## Credit
 
 This tool was inspired by @mhmdiaa's [waybackurls.py](https://gist.github.com/mhmdiaa/adf6bff70142e5091792841d4b372050) script.
 Thanks to them for the great idea!
+
