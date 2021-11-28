@@ -10,8 +10,8 @@ Usage example:
 
 Install:
 
-```
-▶ go get github.com/tomnomnom/waybackurls
+```bash
+go install github.com/tomnomnom/waybackurls@latest
 ```
 
 ## Credit
