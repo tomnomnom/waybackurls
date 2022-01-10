@@ -9,9 +9,12 @@ Usage example:
 ```
 
 Install:
-
+> ### NOTE | Deprecation of `go get` for installing executables
+> Starting in Go 1.17, installing executables with `go get` is [deprecated](https://go.dev/doc/go-get-install-deprecation). `go install` may be used instead.
+>
+> In Go 1.18, `go get` will no longer build packages; it will only be used to add, update, or remove dependencies in go.mod. Specifically, `go get` will always act as if the -d flag were enabled.
 ```
-▶ go get github.com/tomnomnom/waybackurls
+▶ go install -v github.com/tomnomnom/waybackurls@latest
 ```
 
 ## Credit
