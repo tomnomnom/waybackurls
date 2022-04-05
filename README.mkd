@@ -7,6 +7,11 @@ Usage example:
 ```
 ▶ cat domains.txt | waybackurls > urls
 ```
+#### TIP 
+Using the python [intimations](https://github.com/AbhijithAJ/intimations) module, you can receive a message to your telegram mobile application once the execution is complete.
+```
+cat domains.txt | waybackurls > urls ; python3 -m intimations telegram --title 'waybackurls' --message 'Done finding archived URLs' 
+``` 
 
 Install:
 
