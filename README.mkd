@@ -5,13 +5,13 @@ Accept line-delimited domains on stdin, fetch known URLs from the Wayback Machin
 Usage example:
 
 ```
-▶ cat domains.txt | waybackurls > urls
+cat domains.txt | waybackurls > urls
 ```
 
 Install:
 
 ```
-▶ go install github.com/tomnomnom/waybackurls@latest
+go install github.com/tomnomnom/waybackurls@latest
 ```
 
 ## Credit
