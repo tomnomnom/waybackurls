@@ -14,7 +14,7 @@ Install:
 ▶ go install github.com/tomnomnom/waybackurls@latest
 ```
 
-Add the path(Without adding the path your bashrc won't recognize the command as /go/bin isn't included to the system path by default)
+Add the path(Without adding the path to your bashrc won't recognize the command as /go/bin isn't included to the system path by default)
 
 ```
 ▶ export PATH="$PATH:$HOME/go/bin"
