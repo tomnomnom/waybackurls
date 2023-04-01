@@ -14,6 +14,12 @@ Install:
 ▶ go install github.com/tomnomnom/waybackurls@latest
 ```
 
+Add the path(Without adding the path your bashrc won't recognize the command as /go/bin isn't included to the system path by default)
+
+```
+▶ export PATH="$PATH:$HOME/go/bin"
+```
+
 ## Credit
 
 This tool was inspired by @mhmdiaa's [waybackurls.py](https://gist.github.com/mhmdiaa/adf6bff70142e5091792841d4b372050) script.
