@@ -1,22 +1,24 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
-	"flag"
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"os"
-	"strings"
-	"sync"
-	"time"
+    "bufio"
+    "encoding/json"
+    "flag"
+    "fmt"
+    "io/ioutil"
+    "net/http"
+    "net/url"
+    "os"
+    "strings"
+    "sync"
+    "time"
 )
 
 func main() {
+    var domains []string
 
-	var domains []string
+    var fileFlag string
+    flag.StringVar(&fileFlag, "f", "", "file containing list of URLs")
 
 	var dates bool
 	flag.BoolVar(&dates, "dates", false, "show date of fetch in the first column")
@@ -27,23 +29,37 @@ func main() {
 	var getVersionsFlag bool
 	flag.BoolVar(&getVersionsFlag, "get-versions", false, "list URLs for crawled versions of input URL(s)")
 
-	flag.Parse()
+    flag.Parse()
 
-	if flag.NArg() > 0 {
-		// fetch for a single domain
-		domains = []string{flag.Arg(0)}
-	} else {
+    // If the -f flag is provided, read URLs from the specified file
+    if fileFlag != "" {
+        file, err := os.Open(fileFlag)
+        if err != nil {
+            fmt.Fprintf(os.Stderr, "failed to open file: %s\n", err)
+            os.Exit(1)
+        }
+        defer file.Close()
 
-		// fetch for all domains from stdin
-		sc := bufio.NewScanner(os.Stdin)
-		for sc.Scan() {
-			domains = append(domains, sc.Text())
-		}
+        scanner := bufio.NewScanner(file)
+        for scanner.Scan() {
+            domains = append(domains, scanner.Text())
+        }
 
-		if err := sc.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read input: %s\n", err)
-		}
-	}
+        if err := scanner.Err(); err != nil {
+            fmt.Fprintf(os.Stderr, "failed to read file: %s\n", err)
+            os.Exit(1)
+        }
+    } else {
+        // fetch for all domains from stdin
+        sc := bufio.NewScanner(os.Stdin)
+        for sc.Scan() {
+            domains = append(domains, sc.Text())
+        }
+
+        if err := sc.Err(); err != nil {
+            fmt.Fprintf(os.Stderr, "failed to read input: %s\n", err)
+        }
+    }
 
 	// get-versions mode
 	if getVersionsFlag {
